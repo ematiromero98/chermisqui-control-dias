@@ -302,13 +302,14 @@
   const FER=new Set(["01-01","02-16","02-17","03-24","04-02","04-03","05-01","05-25","06-15","06-20","07-09","08-17","10-12","11-23","12-08","12-25"]);
 
   const P=[
-    {id:1,n:"Matías Romero",a:"Accounting",d:14},{id:2,n:"Charly Fabbris",a:"Accounting",d:14},
-    {id:3,n:"Lucía Etchepare",a:"Accounting",d:21},{id:4,n:"Manuel Criscuoli",a:"Tax",d:14},
-    {id:5,n:"Nicolás Cavatorta",a:"Tax",d:14},{id:6,n:"Sebastián Pita",a:"Tax",d:21},
-    {id:7,n:"Martín Di Lello",a:"Tax",d:14},{id:8,n:"Ignacio Gallardo",a:"Audit",d:14},
-    {id:9,n:"Candela Paladino",a:"Audit",d:14},{id:10,n:"Tomás Barragán",a:"Audit",d:21},
-    {id:11,n:"Lara Favier Dubois",a:"Administration",d:14},{id:12,n:"Lara Dayan",a:"Administration",d:14}
+    {id:1,n:"Matías Romero",a:"QuickBooks",d:14},{id:2,n:"Charly Fabbris",a:"Payroll",r:"Manager",d:14},
+    {id:3,n:"Lucía Etchepare",a:"Payroll",d:21},{id:4,n:"Manuel Criscuoli",a:"QuickBooks",d:14},
+    {id:5,n:"Nicolás Cavatorta",a:"QuickBooks",d:14},{id:6,n:"Sebastián Pita",a:"QuickBooks",d:21},
+    {id:7,n:"Martín Di Lello",a:"QuickBooks",d:14},{id:8,n:"Ignacio Gallardo",a:"Payroll",d:14},
+    {id:9,n:"Candela Paladino",a:"Payroll",d:14},{id:10,n:"Tomás Barragán",a:"Payroll",d:21},
+    {id:11,n:"Lara Favier Dubois",a:"Payroll",d:14},{id:12,n:"Lara Dayan",a:"Payroll",d:14}
   ];
+  const subt=p=>p.a+(p.r?" · "+p.r:"");
   let A=[
     {id:1,p:1,t:"vac",f:"2026-01-12",h:"2026-01-23",s:"approved"},
     {id:2,p:1,t:"est",f:"2026-08-27",h:"2026-08-28",s:"approved"},
@@ -408,7 +409,7 @@
       });
       const tl=((doy(new Date(2026,7,29))-.5)/total*100).toFixed(3);
       rows+=`<div class="tl-row"><div class="person"><div class="av" style="background:${avc(p.id)}">${ini(p.n)}</div>
-        <div><b>${p.n}</b><span>${p.a}</span></div></div>
+        <div><b>${p.n}</b><span>${subt(p)}</span></div></div>
         <div class="track">${deco}<div class="today" style="left:${tl}%"></div>${bars}</div></div>`;
     });
     $("#view").innerHTML=`<div class="tl-scroll"><div class="tl">${head}${rows}</div></div>`;
@@ -434,7 +435,7 @@
   function renderPeople(){
     let r=P.map(p=>{const x=resumen(p);const col=x.saldo<0?"var(--rojo)":x.saldo<=3?"var(--ambar)":"var(--menta)";
       const bt=x.saldo<0?"var(--rojo-t)":x.saldo<=3?"var(--ambar-t)":"var(--menta-t)";
-      return `<tr><td><div style="display:flex;align-items:center;gap:9px"><div class="av" style="background:${avc(p.id)}">${ini(p.n)}</div><div><b>${p.n}</b><div style="color:var(--suave);font-size:12px">${p.a}</div></div></div></td>
+      return `<tr><td><div style="display:flex;align-items:center;gap:9px"><div class="av" style="background:${avc(p.id)}">${ini(p.n)}</div><div><b>${p.n}</b><div style="color:var(--suave);font-size:12px">${subt(p)}</div></div></div></td>
         <td class="r mono">${x.asig}</td><td class="r mono">${x.vac}</td><td class="r mono" style="color:var(--suave)">${x.otras}</td>
         <td><span class="prog"><i style="width:${x.pct}%;background:${x.pct>=100?'var(--rojo)':x.pct>=75?'var(--ambar)':'var(--menta)'}"></i></span> <span class="mono" style="color:var(--suave)">${x.pct}%</span></td>
         <td class="r"><span class="badge" style="background:${bt};color:${col}">${x.saldo} days</span></td></tr>`;}).join("");
