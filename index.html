@@ -9,6 +9,8 @@
     --menta:#2ee6a6; --celeste:#5bb0ff; --ambar:#f6b64b; --rojo:#f6465d;
     --texto:#eef2f8; --suave:#8a94a6;
     --menta-t:#12271f; --celeste-t:#122436; --ambar-t:#2a2410; --rojo-t:#2a1416;
+    --us:#8b8bff; --ar:#ff8fae; --us-t:#1c1d33; --ar-t:#33192440;
+    --crit:#f6465d; --coord:#f6b64b;
     --sans:"IBM Plex Sans","Segoe UI",sans-serif;
     --mono:"IBM Plex Mono","Consolas",monospace;
   }
@@ -184,6 +186,51 @@
     border:1px solid var(--menta); border-radius:12px; padding:12px 20px; font-weight:600; opacity:0;
     transition:opacity .25s; pointer-events:none; z-index:50}
   .toast.on{opacity:1}
+
+  /* ===== Holidays ===== */
+  .cell.hol-us{background:var(--us-t)} .cell.hol-ar{background:var(--ar-t)}
+  .hol{display:flex; align-items:center; gap:5px; margin-top:3px; font-size:9.5px; font-weight:700;
+    letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .hol.us{color:var(--us)} .hol.ar{color:var(--ar)}
+  .hol .hd{width:8px;height:8px;border-radius:2px;flex:none}
+  .hol.us .hd{background:var(--us)} .hol.ar .hd{background:var(--ar)}
+  .drow{display:flex; align-items:center; justify-content:space-between; gap:4px}
+  .due{font-size:9px; font-weight:700; color:var(--ambar); background:var(--ambar-t);
+    border-radius:5px; padding:1px 5px; white-space:nowrap}
+  /* holiday bands in the year timeline */
+  .hb{position:absolute; top:0; bottom:0; width:2px; opacity:.75}
+  .hb.us{background:var(--us)} .hb.ar{background:var(--ar)}
+
+  /* ===== Filing blackout strip (timeline) ===== */
+  .tl-strip{display:grid; grid-template-columns:170px 1fr; border-bottom:1px solid var(--borde); background:rgba(0,0,0,.12)}
+  .tl-strip .lab{padding:7px 10px; font-size:10.5px; font-weight:700; color:var(--suave);
+    display:flex; align-items:center; gap:6px}
+  .tl-strip .track{height:34px; background:none}
+  .seg{position:absolute; top:6px; height:22px; border-radius:5px; font-size:9.5px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; overflow:hidden; color:#04120c; padding:0 4px}
+  .seg.crit{background:var(--crit); z-index:2} .seg.coord{background:var(--coord); opacity:.32}
+
+  /* ===== Month filing note ===== */
+  .mnote{margin:0 16px 4px; border-radius:12px; padding:12px 15px; font-size:12.5px}
+  .mnote.crit{background:var(--rojo-t); border:1px solid #4a2226}
+  .mnote.coord{background:var(--ambar-t); border:1px solid #4a3d1a}
+  .mnote.calm{background:var(--card2); border:1px solid var(--borde)}
+  .mnote .mnt{font-weight:700; margin-bottom:6px; display:flex; align-items:center; gap:7px}
+  .mnote.crit .mnt{color:var(--crit)} .mnote.coord .mnt{color:var(--coord)} .mnote.calm .mnt{color:var(--suave)}
+  .mnote ul{margin:0; padding-left:18px; color:var(--suave)} .mnote li{margin:2px 0}
+  .pill{display:inline-block; font-size:9.5px; font-weight:700; border-radius:6px; padding:1px 7px; margin-left:2px}
+  .pill.crit{background:var(--crit); color:#2a0a0e} .pill.coord{background:var(--coord); color:#2a1f06}
+
+  /* ===== Phone: blackout warning ===== */
+  .ph-warn{margin-top:12px; border-radius:10px; padding:10px 12px; font-size:12px; display:none}
+  .ph-warn.on{display:block}
+  .ph-warn.crit{background:var(--rojo-t); border:1px solid #4a2226; color:var(--rojo)}
+  .ph-warn.coord{background:var(--ambar-t); border:1px solid #4a3d1a; color:var(--ambar)}
+  .ph-warn b{color:inherit}
+  .ph-black{margin-top:10px; background:var(--card); border:1px dashed var(--borde); border-radius:10px;
+    padding:9px 12px; font-size:11.5px; color:var(--suave)}
+  .ph-black .bh{font-weight:700; color:var(--texto); margin-bottom:4px}
+  .ppl-flag{display:inline-block; margin-left:7px; color:var(--ambar); cursor:help}
 </style>
 
 <div class="hero">
@@ -223,11 +270,16 @@
           <span><span class="dot" style="background:var(--celeste)"></span>Sick leave</span>
           <span><span class="dot" style="background:var(--ambar)"></span>Study / Exam</span>
           <span><span class="dot" style="background:var(--rojo)"></span>Special / Other</span>
+          <span><span class="dot" style="background:var(--us)"></span>US holiday</span>
+          <span><span class="dot" style="background:var(--ar)"></span>ARG holiday</span>
+          <span><span class="dot" style="background:var(--crit)"></span>Filing lock</span>
+          <span><span class="dot" style="background:var(--coord)"></span>Coordinate</span>
         </div>
       </div>
       <div class="kpis" id="kpis"></div>
       <div id="pendwrap"></div>
       <div id="alertwrap"></div>
+      <div id="blackwrap"></div>
       <div class="tabs" id="tabs">
         <button data-v="year" class="on">📊 Year</button>
         <button data-v="month">🗓️ Month</button>
@@ -250,12 +302,14 @@
           <label>Who are you?</label>
           <select id="ph-person"></select>
           <div class="ph-info" id="ph-info"></div>
+          <div class="ph-black" id="ph-black"></div>
           <label>Type of leave</label>
           <div class="ph-tipos" id="ph-tipos"></div>
           <div class="ph-row">
             <div style="flex:1"><label>From</label><input type="date" id="ph-from"></div>
             <div style="flex:1"><label>To</label><input type="date" id="ph-to"></div>
           </div>
+          <div class="ph-warn" id="ph-warn"></div>
           <button class="ph-send" id="ph-send">Send request</button>
         </div>
       </div></div>
@@ -299,7 +353,94 @@
   const T={vac:{n:"Vacation",c:"#2ee6a6"},lic:{n:"Sick leave",c:"#5bb0ff"},est:{n:"Study / Exam",c:"#f6b64b"},esp:{n:"Special / Other",c:"#f6465d"}};
   const AV=["#2ee6a6","#5bb0ff","#f6b64b","#f6465d","#9d8cff","#4fd1c5","#f78fb3","#7ec8ff","#ffd166","#8de08d","#c3a6ff","#67e8c3"];
   const YEAR=2026;
-  const FER=new Set(["01-01","02-16","02-17","03-24","04-02","04-03","05-01","05-25","06-15","06-20","07-09","08-17","10-12","11-23","12-08","12-25"]);
+
+  // ===== Holidays: US (Los Angeles / California) + Argentina =====
+  const mmdd=d=>String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  const nthWD=(y,m,wd,n)=>{let d=new Date(y,m,1),c=0;while(d.getMonth()===m){if(d.getDay()===wd&&++c===n)return new Date(y,m,d.getDate());d.setDate(d.getDate()+1);}return null;};
+  const lastWD=(y,m,wd)=>{let d=new Date(y,m+1,0);while(d.getDay()!==wd)d.setDate(d.getDate()-1);return d;};
+  function buildHol(y){
+    const H={},add=(d,c,n)=>{if(!d)return;const k=mmdd(d);(H[k]=H[k]||[]).push({c,n});};
+    // US federal + California state holidays
+    add(new Date(y,0,1),"US","New Year's Day");
+    add(nthWD(y,0,1,3),"US","Martin Luther King Jr. Day");
+    add(nthWD(y,1,1,3),"US","Presidents' Day");
+    add(new Date(y,2,31),"US","César Chávez Day");
+    add(lastWD(y,4,1),"US","Memorial Day");
+    add(new Date(y,5,19),"US","Juneteenth");
+    add(new Date(y,6,4),"US","Independence Day");
+    add(nthWD(y,8,1,1),"US","Labor Day");
+    add(new Date(y,10,11),"US","Veterans Day");
+    const tg=nthWD(y,10,4,4);add(tg,"US","Thanksgiving Day");
+    if(tg){const bf=new Date(tg);bf.setDate(bf.getDate()+1);add(bf,"US","Day after Thanksgiving");}
+    add(new Date(y,11,25),"US","Christmas Day");
+    // Argentina (2026: fixed + movable set)
+    const AR={"01-01":"New Year's Day","02-16":"Carnival Monday","02-17":"Carnival Tuesday",
+      "03-24":"Day of Remembrance","04-02":"Malvinas Veterans Day","04-03":"Good Friday",
+      "05-01":"Labor Day","05-25":"May Revolution","06-15":"Gen. Güemes Day","06-20":"Flag Day",
+      "07-09":"Independence Day","08-17":"Gen. San Martín Day","10-12":"Cultural Diversity Day",
+      "11-23":"National Sovereignty Day","12-08":"Immaculate Conception","12-25":"Christmas Day"};
+    Object.keys(AR).forEach(k=>{(H[k]=H[k]||[]).push({c:"AR",n:AR[k]});});
+    return H;
+  }
+  const HOL=buildHol(YEAR);
+  const holOf=dt=>HOL[mmdd(dt)]||[];
+  const isHol=dt=>!!HOL[mmdd(dt)];
+  const holLabel=c=>c==="US"?"US HOLIDAY":"ARG HOLIDAY";
+
+  // ===== Filing calendar (US / California bookkeeping firm) =====
+  // Key deadlines shown on the month/day views.
+  const DUE={
+    "01-31":"W-2 · 1099-NEC · 940 · 943 · Q4 941 · DE9/DE9C · CDTFA Q4 (no extensions)",
+    "03-16":"S-corp & partnership returns — 1120-S / 1065",
+    "04-15":"Individual 1040 · C-corp 1120 · CDTFA Q1",
+    "04-30":"Q1 941 · DE9/DE9C",
+    "07-31":"CDTFA Q2 · Q2 941 · DE9/DE9C",
+    "09-15":"Extended S-corp & 1065",
+    "10-15":"Extended 1040 & C-corp",
+    "10-31":"CDTFA Q3 · Q3 941 · DE9/DE9C"
+  };
+  const dueOf=dt=>DUE[mmdd(dt)]||null;
+
+  // Blackout / coordination windows. hard=true → nobody out; hard=false → coordinate, avoid
+  // two people from the same team out at once. area '*' = whole firm.
+  const CRIT=[
+    {area:"Payroll",   hard:true,  f:"2026-01-01",h:"2026-01-31",label:"January payroll lock — year-end W-2/1099/940/943 & Q4 941/DE9"},
+    {area:"QuickBooks",hard:true,  f:"2026-01-19",h:"2026-01-31",label:"Year-end books close — week before Jan 31"},
+    {area:"*",         hard:true,  f:"2026-04-06",h:"2026-04-15",label:"April 15 filing crunch — 1040 / C-corp"},
+    {area:"Payroll",   hard:false, f:"2026-04-01",h:"2026-04-07",label:"Q1 quarter filings — DE9/DE9C & 941"},
+    {area:"Payroll",   hard:false, f:"2026-07-01",h:"2026-07-07",label:"Q2 quarter filings — DE9/DE9C & 941"},
+    {area:"Payroll",   hard:false, f:"2026-10-01",h:"2026-10-07",label:"Q3 quarter filings — DE9/DE9C & 941"},
+    {area:"QuickBooks",hard:false, f:"2026-01-01",h:"2026-04-15",label:"Tax season — max one person out"},
+    {area:"*",         hard:false, f:"2026-09-01",h:"2026-09-15",label:"Extended S-corp / 1065 — due Sep 15"},
+    {area:"*",         hard:false, f:"2026-10-01",h:"2026-10-15",label:"Extended 1040 / C-corp — due Oct 15"}
+  ];
+  const critFor=(area,f,h)=>CRIT.filter(w=>(w.area==="*"||w.area===area)&&!(h<w.f||f>w.h));
+  const critOnDay=(area,di)=>CRIT.filter(w=>(w.area==="*"||w.area===area)&&w.f<=di&&di<=w.h);
+
+  // Per-month filing notes (index 0..11). Reminder: CDTFA prepayments are due the 24th of the
+  // following month all year long.
+  const MNOTE={
+    0:{lv:"crit",t:"Heaviest month — Payroll locked all January",
+       li:["<b>W-2, 1099-NEC, 940 &amp; 943 due Jan 31</b> — no extensions available.",
+           "Q4 <b>941</b> and <b>DE9/DE9C</b> also due Jan 31; <b>CDTFA Q4</b> return due Jan 31.",
+           "<b>Payroll:</b> no time off in January. <b>QuickBooks/Taxes:</b> year-end close runs now — the week before Jan 31, nobody out."]},
+    2:{lv:"coord",t:"S-corp &amp; partnership deadline — Mar 15",
+       li:["<b>1120-S &amp; 1065</b> returns due (Mar 15 falls on a Sunday → Mar 16).",
+           "Keep at least one QuickBooks/Taxes person covering the run-up."]},
+    3:{lv:"crit",t:"April 15 deadline",
+       li:["<b>1040 &amp; C-corp</b> returns and <b>CDTFA Q1</b> due; Q1 <b>941/DE9</b> due Apr 30.",
+           "<b>QuickBooks/Taxes:</b> the week before Apr 15, nobody out.",
+           "<b>Payroll:</b> avoid two people from the same team off the first week (quarter filings)."]},
+    6:{lv:"coord",t:"Q2 quarter-end",
+       li:["<b>CDTFA Q2</b>, Q2 <b>941 &amp; DE9/DE9C</b> due Jul 31.",
+           "<b>Payroll:</b> don't schedule two from the same team off the first week of July."]},
+    8:{lv:"coord",t:"Extended returns — Sep 15",
+       li:["<b>Extended S-corp &amp; 1065</b> returns due Sep 15.",
+           "Coordinate so Taxes/QuickBooks stays covered Sep 1–15."]},
+    9:{lv:"coord",t:"Q3 quarter-end + extensions — Oct 15",
+       li:["<b>CDTFA Q3</b>, Q3 <b>941/DE9</b> due Oct 31; <b>extended 1040 &amp; C-corp</b> due Oct 15.",
+           "<b>Payroll:</b> avoid two off the first week. <b>Taxes:</b> cover Oct 1–15."]}
+  };
 
   const P=[
     {id:1,n:"Matías Romero",a:"QuickBooks",d:14},{id:2,n:"Charly Fabbris",a:"Payroll",r:"Manager",d:14},
@@ -334,7 +475,7 @@
   const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
   const fmt=s=>s.split("-").reverse().join("/");
   const wknd=d=>d.getDay()===0||d.getDay()===6;
-  const fer=d=>FER.has(String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"));
+  const fer=isHol;   // a day is non-working if it's a holiday in EITHER country
   function hab(f,h){let d=pd(f),e=pd(h),n=0;for(let x=new Date(d);x<=e;x.setDate(x.getDate()+1))if(!wknd(x)&&!fer(x))n++;return n;}
   const doy=d=>Math.floor((d-new Date(d.getFullYear(),0,0))/864e5);
   const ini=n=>n.split(" ").slice(0,2).map(p=>p[0]).join("").toUpperCase();
@@ -357,7 +498,21 @@
     return r;
   }
 
-  function render(){ renderKpis(); renderPend(); renderAlerts(); renderView(); }
+  function render(){ renderKpis(); renderPend(); renderAlerts(); renderBlackouts(); renderView(); }
+
+  // absences that land inside a filing blackout — so the manager can coordinate
+  function absHits(a){const p=per(a.p);return critFor(p.a,a.f,a.h);}
+  function renderBlackouts(){
+    const flagged=visible().map(a=>({a,w:absHits(a)})).filter(x=>x.w.length)
+      .sort((x,y)=>x.a.f<y.a.f?-1:1);
+    if(!flagged.length){$("#blackwrap").innerHTML="";return;}
+    let h=`<div class="band warn"><div class="bt">📌 ${flagged.length} booking(s) inside a filing period — coordinate coverage</div>`;
+    flagged.slice(0,6).forEach(({a,w})=>{const p=per(a.p);const hard=w.some(z=>z.hard);
+      h+=`<div style="margin-top:4px">${hard?"⛔":"⚠️"} [${p.a}] ${p.n.split(" ")[0]} · ${T[a.t].n} `
+        +`<span class="adate">${fmt(a.f)} → ${fmt(a.h)}</span> — <span style="color:var(--suave)">${w[0].label}${w.length>1?` (+${w.length-1})`:""}</span></div>`;});
+    if(flagged.length>6)h+=`<div style="margin-top:4px;color:var(--suave)">and ${flagged.length-6} more…</div>`;
+    h+=`</div>`;$("#blackwrap").innerHTML=h;
+  }
 
   function renderKpis(){
     const vis=visible();
@@ -397,10 +552,24 @@
   function renderYear(){
     const total=365;
     let head=`<div class="tl-head"><div></div><div class="mrow">`+MC.map(m=>`<div class="m">${m}</div>`).join("")+`</div></div>`;
+    // shared background: weekends + holiday bands (same for every row)
+    let decoBase="";
+    for(let dd=1;dd<=total;dd++){
+      const dt=new Date(2026,0,dd);const l=((dd-1)/total*100).toFixed(3),w=(1/total*100).toFixed(3);
+      const hs=holOf(dt);
+      if(hs.length){const us=hs.some(x=>x.c==="US");const nm=hs.map(x=>x.n).join(" / ");
+        decoBase+=`<div class="hb ${us?"us":"ar"}" style="left:${l}%;width:${w}%" title="${us?"US":"ARG"} holiday · ${nm}"></div>`;}
+      else if(wknd(dt))decoBase+=`<div class="wk" style="left:${l}%;width:${w}%"></div>`;
+    }
+    // filing-blackout strip (one, above the rows)
+    let segs="";
+    [...CRIT].sort((a,b)=>a.hard-b.hard).forEach(wnd=>{const d0=doy(pd(wnd.f)),d1=doy(pd(wnd.h));
+      const left=((d0-1)/total*100).toFixed(3),ww=Math.max(.6,(d1-d0+1)/total*100).toFixed(3);
+      segs+=`<div class="seg ${wnd.hard?"crit":"coord"}" style="left:${left}%;width:${ww}%" title="${wnd.label}${wnd.hard?" — nobody out":" — coordinate"} (${fmt(wnd.f)}–${fmt(wnd.h)})">${ww>4?(wnd.hard?"LOCK":"coord"):""}</div>`;});
+    const strip=`<div class="tl-strip"><div class="lab">🔒 Filing blackouts</div><div class="track" style="position:relative">${segs}</div></div>`;
     let rows="";
     P.forEach(p=>{
-      let deco="";
-      for(let dd=1;dd<=total;dd++){const dt=new Date(2026,0,dd);if(wknd(dt)){const l=((dd-1)/total*100).toFixed(3);deco+=`<div class="wk" style="left:${l}%;width:${(1/total*100).toFixed(3)}%"></div>`;}}
+      let deco=decoBase;
       let bars="";
       visible().filter(a=>a.p===p.id).forEach(a=>{
         const d0=doy(pd(a.f)),d1=doy(pd(a.h));const left=(d0-1)/total*100,w=Math.max(.6,(d1-d0+1)/total*100);
@@ -412,30 +581,48 @@
         <div><b>${p.n}</b><span>${subt(p)}</span></div></div>
         <div class="track">${deco}<div class="today" style="left:${tl}%"></div>${bars}</div></div>`;
     });
-    $("#view").innerHTML=`<div class="tl-scroll"><div class="tl">${head}${rows}</div></div>`;
+    $("#view").innerHTML=`<div class="tl-scroll"><div class="tl">${head}${strip}${rows}</div></div>`;
   }
   function renderMonth(){
     const first=new Date(2026,month,1);let start=(first.getDay()+6)%7;
     const dim=new Date(2026,month+1,0).getDate();
     let h=`<div class="mnav"><button class="btn" onclick="DEMO.mo(-1)">‹</button><div class="mt">${M0[month]} 2026</div><button class="btn" onclick="DEMO.mo(1)">›</button></div>`;
+    h+=monthNote(month);
     h+=`<div class="cal">`+DOW.map(d=>`<div class="dow">${d}</div>`).join("");
     const cells=Math.ceil((start+dim)/7)*7;
     for(let i=0;i<cells;i++){
       const dn=i-start+1,inm=dn>=1&&dn<=dim;
       if(!inm){h+=`<div class="cell out"></div>`;continue;}
-      const dt=new Date(2026,month,dn);let cls="cell";if(fer(dt))cls+=" wknd";else if(wknd(dt))cls+=" wknd";
-      const di=iso(dt);const day=visible().filter(a=>a.f<=di&&a.h>=di);
-      let inner=`<div class="dn">${dn}</div>`;
+      const dt=new Date(2026,month,dn);const hs=holOf(dt);
+      let cls="cell";
+      if(hs.some(x=>x.c==="US"))cls+=" hol-us";else if(hs.length)cls+=" hol-ar";else if(wknd(dt))cls+=" wknd";
+      const di=iso(dt);const day=visible().filter(a=>a.f<=di&&a.h>=di);const due=dueOf(dt);
+      let inner=`<div class="drow"><div class="dn">${dn}</div>`+(due?`<span class="due" title="${due}">⚑ due</span>`:``)+`</div>`;
+      hs.forEach(x=>{inner+=`<div class="hol ${x.c==="US"?"us":"ar"}" title="${holLabel(x.c)} · ${x.n}"><span class="hd"></span>${holLabel(x.c)} · ${x.n}</div>`;});
       day.slice(0,3).forEach(a=>{const p=per(a.p);inner+=`<div class="chip" style="color:${T[a.t].c}"><span class="cd" style="background:${T[a.t].c}"></span>${p.n.split(" ")[0]}</div>`;});
       if(day.length>3)inner+=`<div class="chip" style="color:var(--suave)">+${day.length-3} more</div>`;
       h+=`<div class="${cls}">${inner}</div>`;
     }
     h+=`</div>`;$("#view").innerHTML=h;
   }
+  function monthNote(m){
+    const n=MNOTE[m];
+    const dues=Object.keys(DUE).filter(k=>Number(k.slice(0,2))===m+1)
+      .sort().map(k=>`<li><b>${MC[m]} ${Number(k.slice(3))}:</b> ${DUE[k]}</li>`);
+    if(!n&&!dues.length)
+      return `<div class="mnote calm"><div class="mnt">🗓️ ${M0[m]} — no filing deadlines. Good window for time off.</div>
+        <ul><li>Reminder: CDTFA monthly prepayments are due the 24th of the following month.</li></ul></div>`;
+    const lv=n?n.lv:"coord";
+    const pill=lv==="crit"?`<span class="pill crit">FILING LOCK</span>`:`<span class="pill coord">COORDINATE</span>`;
+    let li=(n?n.li:[]).map(x=>`<li>${x}</li>`).join("")+dues.join("");
+    return `<div class="mnote ${lv}"><div class="mnt">${lv==="crit"?"🔒":"⚠️"} ${n?n.t:M0[m]+" filings"} ${pill}</div>
+      <ul>${li}<li style="color:var(--suave);opacity:.8">People can still request time off — it just needs to be coordinated with the team.</li></ul></div>`;
+  }
   function renderPeople(){
     let r=P.map(p=>{const x=resumen(p);const col=x.saldo<0?"var(--rojo)":x.saldo<=3?"var(--ambar)":"var(--menta)";
       const bt=x.saldo<0?"var(--rojo-t)":x.saldo<=3?"var(--ambar-t)":"var(--menta-t)";
-      return `<tr><td><div style="display:flex;align-items:center;gap:9px"><div class="av" style="background:${avc(p.id)}">${ini(p.n)}</div><div><b>${p.n}</b><div style="color:var(--suave);font-size:12px">${subt(p)}</div></div></div></td>
+      const fl=visible().filter(a=>a.p===p.id).some(a=>absHits(a).length);
+      return `<tr><td><div style="display:flex;align-items:center;gap:9px"><div class="av" style="background:${avc(p.id)}">${ini(p.n)}</div><div><b>${p.n}</b>${fl?`<span class="ppl-flag" title="Has time off booked inside a filing period — coordinate coverage">⚠</span>`:``}<div style="color:var(--suave);font-size:12px">${subt(p)}</div></div></div></td>
         <td class="r mono">${x.asig}</td><td class="r mono">${x.vac}</td><td class="r mono" style="color:var(--suave)">${x.otras}</td>
         <td><span class="prog"><i style="width:${x.pct}%;background:${x.pct>=100?'var(--rojo)':x.pct>=75?'var(--ambar)':'var(--menta)'}"></i></span> <span class="mono" style="color:var(--suave)">${x.pct}%</span></td>
         <td class="r"><span class="badge" style="background:${bt};color:${col}">${x.saldo} days</span></td></tr>`;}).join("");
@@ -487,12 +674,30 @@
       mine.slice(0,5).forEach(a=>{h+=`<br>· <span style="color:${T[a.t].c}">■</span> ${T[a.t].n}: ${fmt(a.f)} → ${fmt(a.h)}${a.s==="pending"?" ⏳":""}`;});}
     else h+=`<br><span style="color:var(--suave)">Nothing booked yet.</span>`;
     $("#ph-info").innerHTML=h;
+    // your team's blackout periods (so you plan around them)
+    const myWnd=CRIT.filter(w=>w.area==="*"||w.area===p.a);
+    let b=`<div class="bh">📌 ${p.a} · filing periods to plan around</div>`;
+    b+=myWnd.map(w=>`· <span style="color:${w.hard?"var(--crit)":"var(--coord)"}">${w.hard?"⛔":"⚠️"}</span> ${w.label} <span class="mono">(${fmt(w.f)}–${fmt(w.h)})</span>`).join("<br>");
+    $("#ph-black").innerHTML=b;
+    phWarn();
+  }
+  function phWarn(){
+    const p=per(Number($("#ph-person").value));const f=$("#ph-from").value,h=$("#ph-to").value;
+    const el=$("#ph-warn");if(!p||!f||!h||h<f){el.className="ph-warn";el.innerHTML="";return;}
+    const hits=critFor(p.a,f,h);
+    if(!hits.length){el.className="ph-warn";el.innerHTML="";return;}
+    const hard=hits.some(w=>w.hard);
+    el.className="ph-warn on "+(hard?"crit":"coord");
+    el.innerHTML=`${hard?"⛔ <b>Heads up — these dates fall in a filing lock.</b>":"⚠️ <b>These dates overlap a busy filing period.</b>"} `
+      +`You can still send the request, but please coordinate with your team:<br>`
+      +hits.map(w=>`· ${w.label}`).join("<br>");
   }
   function phSend(){
     const p=Number($("#ph-person").value),f=$("#ph-from").value,h=$("#ph-to").value;
     if(!f||!h||h<f){toast("Pick a valid date range");return;}
     A.push({id:++nextId,p:p,t:phTipo,f:f,h:h,s:"pending"});
-    toast("✅ Request sent — pending approval");
+    const hits=critFor(per(p).a,f,h);
+    toast(hits.length?"✅ Request sent — flagged: overlaps a filing period, coordinate with your team":"✅ Request sent — pending approval");
     render();phInfo();
     document.querySelector('.panel').scrollIntoView({behavior:"smooth"});
   }
@@ -505,6 +710,8 @@
   $("#tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
     document.querySelectorAll("#tabs button").forEach(x=>x.classList.remove("on"));b.classList.add("on");view=b.dataset.v;renderView();});
   $("#ph-person").addEventListener("change",phInfo);
+  $("#ph-from").addEventListener("change",phWarn);
+  $("#ph-to").addEventListener("change",phWarn);
   $("#ph-send").addEventListener("click",phSend);
   render();phInit();
 })();
