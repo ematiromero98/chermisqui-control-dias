@@ -98,9 +98,9 @@ const esc = s => String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&l
 const todayISO = iso(new Date());
 
 /* ---------------- Estado ---------------- */
-const S = { pin:"", manager:false, P:[], A:[], view:"year",
-            month: (new Date().getFullYear()===YEAR ? new Date().getMonth() : 0),
-            fTipo:"vac", lastSig:"", timer:null };
+const _m0 = (new Date().getFullYear()===YEAR ? new Date().getMonth() : 0);
+const S = { pin:"", manager:false, P:[], A:[], view:"year", month:_m0,
+            eview:"emonth", emonth:_m0, fTipo:"vac", lastSig:"", timer:null };
 const per = id => S.P.find(x=>x.id===id);
 const visible = () => S.A.filter(a=>a.s!=="rechazada");
 
@@ -149,16 +149,8 @@ function fInit(){
   fInfo();
 }
 function fInfo(){
-  const p=per(Number($("#f-person").value)); if(!p) return;
-  const x=resumen(p); const col=x.saldo<0?"var(--rojo)":x.saldo<=3?"var(--ambar)":"var(--menta)";
-  let h=`Asignados <b>${x.asig}</b> · tomados <b>${x.vac}</b> · te quedan <b style="color:${col}">${x.saldo} días</b>`;
-  if(x.pend) h+=` <span class="muted">(+${x.pend} pendientes)</span>`;
-  const mine=visible().filter(a=>a.p===p.id);
-  if(mine.length){ h+=`<br><span class="muted">Ya cargado:</span>`;
-    mine.slice(0,6).forEach(a=>{ h+=`<br>· <span style="color:${T[a.t].c}">■</span> ${T[a.t].n}: ${fmt(a.f)} → ${fmt(a.h)}${a.s==="pendiente"?" ⏳":a.s==="aprobada"?" ✓":""}`; }); }
-  else h+=`<br><span class="muted">Todavía no cargaste nada.</span>`;
-  $("#f-info").innerHTML=h;
-  // bloqueos del área
+  const p=per(Number($("#f-person").value)); if(!p){ $("#f-black").innerHTML=""; return; }
+  // bloqueos del área (sin días disponibles: sólo cargar y enviar)
   const mine2=CRIT.filter(w=>w.area==="*"||w.area===p.a);
   let b=`<div class="bh">📌 ${p.a||"Tu equipo"} · fechas fuertes a tener en cuenta</div>`;
   b+=mine2.map(w=>`· <span style="color:${w.hard?"var(--crit)":"var(--coord)"}">${w.hard?"⛔":"⚠️"}</span> ${w.label} <span class="mono">(${fmt(w.f)}–${fmt(w.h)})</span>`).join("<br>");
@@ -181,7 +173,7 @@ async function fSend(){
   const btn=$("#f-send"); btn.disabled=true; btn.textContent="Enviando…";
   try{
     await api("submit",{ persona_id:p, tipo:S.fTipo, desde:f, hasta:h });
-    await load(); fInfo();
+    await load(); renderEmployee();
     const hits=critFor(per(p).a,f,h);
     toast(hits.length?"✅ Enviada — cae en un período fuerte, coordiná con tu equipo":"✅ Solicitud enviada — queda pendiente de aprobación");
     if(S.manager) render();
@@ -208,12 +200,20 @@ function exitManager(){
   $("#dash").classList.add("hidden");
   $("#employee").classList.remove("hidden");
   $("#btn-manager").classList.remove("hidden");
+  renderEmployee();
 }
-function renderLegend(){
+function legendHTML(){
   const chips=[...Object.values(T).map(v=>[v.c,v.n]),
     ["var(--us)","Feriado USA"],["var(--ar)","Feriado ARG"],
     ["var(--crit)","Bloqueo"],["var(--coord)","Coordinar"]];
-  $("#legend").innerHTML=chips.map(c=>`<span><span class="dot" style="background:${c[0]}"></span>${c[1]}</span>`).join("");
+  return chips.map(c=>`<span><span class="dot" style="background:${c[0]}"></span>${c[1]}</span>`).join("");
+}
+function renderLegend(){ $("#legend").innerHTML=legendHTML(); }
+// calendario visible para empleados (read-only): mes/año con feriados y quién está
+function renderEmployee(){
+  fInit();
+  $("#elegend").innerHTML=legendHTML();
+  if(S.eview==="eyear") eYear(); else eMonth();
 }
 function sig(){ return S.A.map(a=>a.id+":"+a.s+":"+a.f+":"+a.h).join("|")+"#"+S.P.length; }
 function scheduleRefresh(){
@@ -272,7 +272,7 @@ function renderView(){
   else if(S.view==="people") renderPeople();
   else renderAn();
 }
-function renderYear(){
+function timelineHTML(ro){
   const total=(YEAR%4===0&&YEAR%100!==0)||YEAR%400===0?366:365;
   let head=`<div class="tl-head"><div></div><div class="mrow">`+MC.map(m=>`<div class="m">${m}</div>`).join("")+`</div></div>`;
   let decoBase="";
@@ -293,7 +293,7 @@ function renderYear(){
     visible().filter(a=>a.p===p.id).forEach(a=>{
       const d0=doy(pd(a.f)),d1=doy(pd(a.h)); const left=(d0-1)/total*100, w=Math.max(.6,(d1-d0+1)/total*100);
       const pend=a.s==="pendiente"; const c=T[a.t].c;
-      bars+=`<div class="bar${pend?" pend":""}" style="left:${left}%;width:${w}%;${pend?`border-color:${c};color:${c}`:`background:${c}`}" title="${T[a.t].n}: ${fmt(a.f)}–${fmt(a.h)}${pend?" (pendiente)":""}" onclick="APP.absMenu(${a.id})">${w>5?hab(a.f,a.h)+"d"+(pend?"*":""):""}</div>`;
+      bars+=`<div class="bar${pend?" pend":""}" style="left:${left}%;width:${w}%;${pend?`border-color:${c};color:${c}`:`background:${c}`}${ro?";cursor:default":""}" title="${esc(per(a.p)?per(a.p).n:"")} · ${T[a.t].n}: ${fmt(a.f)}–${fmt(a.h)}${pend?" (pendiente)":""}"${ro?"":` onclick="APP.absMenu(${a.id})"`}>${w>5?hab(a.f,a.h)+"d"+(pend?"*":""):""}</div>`;
     });
     const today=new Date();
     const tl=today.getFullYear()===YEAR?`<div class="today" style="left:${((doy(today)-.5)/total*100).toFixed(3)}%"></div>`:"";
@@ -301,9 +301,11 @@ function renderYear(){
       <div><b>${esc(p.n)}</b><span>${esc(p.a)}${p.r?" · "+esc(p.r):""}</span></div></div>
       <div class="track">${decoBase}${tl}${bars}</div></div>`;
   });
-  if(!S.P.length) rows=`<div style="padding:26px;text-align:center" class="muted">Sin personas. Agregá con “＋ Persona”.</div>`;
-  $("#view").innerHTML=`<div class="tl-scroll"><div class="tl">${head}${strip}${rows}</div></div>`;
+  if(!S.P.length) rows=`<div style="padding:26px;text-align:center" class="muted">Sin personas.</div>`;
+  return `<div class="tl-scroll"><div class="tl">${head}${strip}${rows}</div></div>`;
 }
+function renderYear(){ $("#view").innerHTML=timelineHTML(false); }
+function eYear(){ $("#ecal").innerHTML=timelineHTML(true); }
 function monthNote(m){
   const n=MNOTE[m];
   const dues=Object.keys(DUE).filter(k=>Number(k.slice(0,2))===m+1).sort().map(k=>`<li><b>${MC[m]} ${Number(k.slice(3))}:</b> ${DUE[k]}</li>`);
@@ -316,17 +318,17 @@ function monthNote(m){
   return `<div class="mnote ${lv}"><div class="mnt">${lv==="crit"?"🔒":"⚠️"} ${n?n.t:MESES[m]+" — vencimientos"} ${pill}</div>
     <ul>${li}<li class="muted" style="opacity:.85">Igual se pueden pedir licencias — solo hay que coordinarlas con el equipo.</li></ul></div>`;
 }
-function renderMonth(){
-  const first=new Date(YEAR,S.month,1); let start=(first.getDay()+6)%7;
-  const dim=new Date(YEAR,S.month+1,0).getDate();
-  let h=`<div class="mnav"><button class="btn mini" onclick="APP.mo(-1)">‹</button><div class="mt">${MESES[S.month]} ${YEAR}</div><button class="btn mini" onclick="APP.mo(1)">›</button></div>`;
-  h+=monthNote(S.month);
+function monthGridHTML(m, navFn){
+  const first=new Date(YEAR,m,1); let start=(first.getDay()+6)%7;
+  const dim=new Date(YEAR,m+1,0).getDate();
+  let h=`<div class="mnav"><button class="btn mini" onclick="${navFn}(-1)">‹</button><div class="mt">${MESES[m]} ${YEAR}</div><button class="btn mini" onclick="${navFn}(1)">›</button></div>`;
+  h+=monthNote(m);
   h+=`<div class="cal">`+DOW.map(d=>`<div class="dow">${d}</div>`).join("");
   const cells=Math.ceil((start+dim)/7)*7;
   for(let i=0;i<cells;i++){
     const dn=i-start+1, inm=dn>=1&&dn<=dim;
     if(!inm){ h+=`<div class="cell out"></div>`; continue; }
-    const dt=new Date(YEAR,S.month,dn); const hs=holOf(dt);
+    const dt=new Date(YEAR,m,dn); const hs=holOf(dt);
     let cls="cell"; if(hs.some(x=>x.c==="US"))cls+=" hol-us"; else if(hs.length)cls+=" hol-ar"; else if(wknd(dt))cls+=" wknd";
     const di=iso(dt); const day=visible().filter(a=>a.f<=di&&a.h>=di); const due=dueOf(dt);
     let inner=`<div class="drow"><div class="dn">${dn}</div>`+(due?`<span class="due" title="${esc(due)}">⚑ venc.</span>`:``)+`</div>`;
@@ -335,8 +337,10 @@ function renderMonth(){
     if(day.length>3) inner+=`<div class="chip muted">+${day.length-3} más</div>`;
     h+=`<div class="${cls}">${inner}</div>`;
   }
-  h+=`</div>`; $("#view").innerHTML=h;
+  h+=`</div>`; return h;
 }
+function renderMonth(){ $("#view").innerHTML=monthGridHTML(S.month,"APP.mo"); }
+function eMonth(){ $("#ecal").innerHTML=monthGridHTML(S.emonth,"APP.emo"); }
 function renderPeople(){
   if(!S.P.length){ $("#view").innerHTML=`<div style="padding:26px;text-align:center" class="muted">Sin personas.</div>`; return; }
   let r=S.P.map(p=>{ const x=resumen(p); const col=x.saldo<0?"var(--rojo)":x.saldo<=3?"var(--ambar)":"var(--menta)";
@@ -458,13 +462,18 @@ $("#modal-x").addEventListener("click",closeModal);
 $("#modal").addEventListener("click",(e)=>{ if(e.target.id==="modal") closeModal(); });
 $("#tabs").addEventListener("click",(e)=>{ const b=e.target.closest("button"); if(!b) return;
   $$("#tabs button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); S.view=b.dataset.v; renderView(); });
+$("#etabs").addEventListener("click",(e)=>{ const b=e.target.closest("button"); if(!b) return;
+  $$("#etabs button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); S.eview=b.dataset.ev;
+  if(S.eview==="eyear") eYear(); else eMonth(); });
 
-window.APP={ decide, absMenu, closeModal, mo(d){ S.month+=d; if(S.month<0)S.month=11; if(S.month>11)S.month=0; renderMonth(); } };
+window.APP={ decide, absMenu, closeModal,
+  mo(d){ S.month+=d; if(S.month<0)S.month=11; if(S.month>11)S.month=0; renderMonth(); },
+  emo(d){ S.emonth+=d; if(S.emonth<0)S.emonth=11; if(S.emonth>11)S.emonth=0; eMonth(); } };
 
 /* ---------------- Init ---------------- */
 (async function(){
   try{ await load(); }catch(ex){ toast("No se pudo conectar: "+ex.message,true); }
-  fInit();
+  renderEmployee();
   const savedPin=localStorage.getItem("chcal_pin");
   if(savedPin){ S.pin=savedPin; api("login").then(enterManager).catch(()=>{ S.pin=""; localStorage.removeItem("chcal_pin"); }); }
 })();
