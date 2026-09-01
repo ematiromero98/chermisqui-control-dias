@@ -27,8 +27,8 @@ datos real (Supabase). Una sola página: los empleados cargan desde el celular
 Proyecto Supabase **EMPLOYEE-PRO** (`ffczbimnuodzcbgsdxbx`). Tablas con prefijo
 `chcal_` (distintas del calendario argentino `cal_`). RLS ON sin políticas: todo
 el acceso pasa por la Edge Function **`chcal-api`** (service_role). La carga de
-empleados es pública (sin PIN); aprobar/editar valida el **PIN del jefe**
-(inicial `cal2026`, cambiable desde el botón "PIN"). Esquema en
+empleados es pública (sin PIN); aprobar/editar valida el **PIN del jefe**,
+cambiable desde el botón "PIN" del panel. Esquema en
 `supabase/migrations/`. Función en `supabase/functions/chcal-api/`.
 
 `demo.html` es la maqueta original autónoma (sin backend), solo de referencia.
