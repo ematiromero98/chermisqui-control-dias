@@ -343,14 +343,12 @@ function renderMonth(){ $("#view").innerHTML=monthGridHTML(S.month,"APP.mo"); }
 function eMonth(){ $("#ecal").innerHTML=monthGridHTML(S.emonth,"APP.emo"); }
 function renderPeople(){
   if(!S.P.length){ $("#view").innerHTML=`<div style="padding:26px;text-align:center" class="muted">Sin personas.</div>`; return; }
-  let r=S.P.map(p=>{ const x=resumen(p); const col=x.saldo<0?"var(--rojo)":x.saldo<=3?"var(--ambar)":"var(--menta)";
-    const bt=x.saldo<0?"var(--rojo-t)":x.saldo<=3?"var(--ambar-t)":"var(--menta-t)";
+  let r=S.P.map(p=>{ const x=resumen(p);
     const fl=visible().filter(a=>a.p===p.id).some(a=>absHits(a).length);
     return `<tr><td><div style="display:flex;align-items:center;gap:9px"><div class="av" style="background:${avc(p.id)}">${ini(p.n)}</div><div><b>${esc(p.n)}</b>${fl?`<span class="ppl-flag" title="Tiene licencia en un período de cierre — coordinar">⚠</span>`:``}<div class="muted" style="font-size:12px">${esc(p.a)}${p.r?" · "+esc(p.r):""}</div></div></div></td>
-      <td class="r mono">${x.asig}</td><td class="r mono">${x.vac}</td><td class="r mono muted">${x.otras}</td>
-      <td><span class="prog"><i style="width:${x.pct}%;background:${x.pct>=100?"var(--rojo)":x.pct>=75?"var(--ambar)":"var(--menta)"}"></i></span> <span class="mono muted">${x.pct}%</span></td>
-      <td class="r"><span class="badge" style="background:${bt};color:${col}">${x.saldo} días</span></td></tr>`; }).join("");
-  $("#view").innerHTML=`<div style="padding:0 16px 16px"><table><thead><tr><th>Persona</th><th class="r">Asignados</th><th class="r">Vacaciones</th><th class="r">Otras</th><th>Consumo</th><th class="r">Saldo</th></tr></thead><tbody>${r}</tbody></table></div>`;
+      <td class="r mono">${x.vac}</td><td class="r mono muted">${x.otras}</td>
+      <td class="r mono">${x.vac+x.otras}</td></tr>`; }).join("");
+  $("#view").innerHTML=`<div style="padding:0 16px 16px"><table><thead><tr><th>Persona</th><th class="r">Vacaciones</th><th class="r">Otras licencias</th><th class="r">Total días</th></tr></thead><tbody>${r}</tbody></table></div>`;
 }
 function renderAn(){
   const total=(YEAR%4===0&&YEAR%100!==0)||YEAR%400===0?366:365;
@@ -402,11 +400,10 @@ function addPersona(){
   openModal("Nueva persona",`
     <label class="fl">Nombre y apellido</label><input id="m-nom" placeholder="Ej: Juan Pérez">
     <div class="row2"><div><label class="fl">Área</label><input id="m-area" placeholder="QuickBooks / Payroll"></div>
-      <div><label class="fl">Días asignados</label><input id="m-dias" type="number" value="14"></div></div>
-    <label class="fl">Rol (opcional)</label><input id="m-rol" placeholder="Ej: Manager">
+      <div><label class="fl">Rol (opcional)</label><input id="m-rol" placeholder="Ej: Manager"></div></div>
     <div class="modal-actions"><button class="btn ghost" onclick="APP.closeModal()">Cancelar</button><button class="btn primary" id="m-ok">Guardar</button></div>`);
   $("#m-ok").onclick=async ()=>{ const nombre=$("#m-nom").value.trim(); if(!nombre) return toast("Falta el nombre",true);
-    try{ await api("add_persona",{ nombre, area:$("#m-area").value.trim()||null, rol:$("#m-rol").value.trim()||null, dias_asignados:Number($("#m-dias").value)||14 });
+    try{ await api("add_persona",{ nombre, area:$("#m-area").value.trim()||null, rol:$("#m-rol").value.trim()||null });
       await load(); render(); closeModal(); toast("Persona agregada ✓"); }catch(ex){ toast(ex.message,true); } };
 }
 function addAusencia(){
