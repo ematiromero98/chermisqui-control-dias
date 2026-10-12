@@ -24,7 +24,7 @@ datos real (Supabase). Una sola página: los empleados cargan desde el celular
 
 ## Base de datos
 
-Proyecto Supabase **EMPLOYEE-PRO** (`ffczbimnuodzcbgsdxbx`). Tablas con prefijo
+Proyecto Supabase **ORDENES DE PAGO - BELGRANO** (`zpwccecovhjmeibxafkg`), schema `chermisqui` (hasta oct-2026 en EMPLOYEE-PRO `ffczbimnuodzcbgsdxbx`, dado de baja). Tablas con prefijo
 `chcal_` (distintas del calendario argentino `cal_`). RLS ON sin políticas: todo
 el acceso pasa por la Edge Function **`chcal-api`** (service_role). La carga de
 empleados es pública (sin PIN); aprobar/editar valida el **PIN del jefe**,
