@@ -89,7 +89,28 @@ const clean = (patch: Record<string, unknown>, allowed: Set<string>) => {
 };
 // Acciones que NO requieren PIN (empleados, entrada libre)
 const PUBLIC = new Set(['bootstrap', 'submit']);
-const isDate = (s: unknown) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+// Fecha ISO real (rechaza 2026-02-31) y dentro de un rango razonable.
+const isDate = (s: unknown) => {
+  if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(s + 'T00:00:00Z');
+  if (isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== s) return false;
+  const y = d.getUTCFullYear();
+  return y >= 2020 && y <= 2100;
+};
+const diasEntre = (a: string, b: string) =>
+  Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000);
+const MAX_DIAS_SOLICITUD = 366;   // una solicitud no puede abarcar más de un año
+const MAX_PENDIENTES = 10;        // solicitudes pendientes por persona (entrada pública)
+const MAX_COMENTARIO = 300;
+// Columnas que ve la vista pública del empleado (app.js: renderEmployee,
+// timelineHTML(true), monthGridHTML). Sin comentario ni días asignados.
+const COLS_PERSONA_PUB = 'id,nombre,area,rol';
+const COLS_AUSENCIA_PUB = 'id,persona_id,tipo,desde,hasta,estado';
+// Error 500 genérico: el detalle va solo al log de la función.
+const errInterno = (donde: string, e: unknown) => {
+  console.error(`chcal-api ${donde}:`, e);
+  return json({ error: 'Error interno, probá de nuevo' }, 500);
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -109,22 +130,49 @@ Deno.serve(async (req) => {
       case 'login':
         return json({ ok: true });
 
+      // Pública (formulario y calendario del empleado): solo lo que se muestra.
+      // Las rechazadas no se ven en la vista pública (visible() las filtra).
       case 'bootstrap': {
-        const { data: personas } = await db.from('chcal_personas').select('*').eq('activo', true).order('orden');
-        const { data: ausencias } = await db.from('chcal_ausencias').select('*').order('desde');
+        const { data: personas, error: e1 } = await db.from('chcal_personas').select(COLS_PERSONA_PUB).eq('activo', true).order('orden');
+        if (e1) return errInterno('bootstrap personas', e1);
+        const { data: aus, error: e2 } = await db.from('chcal_ausencias').select(COLS_AUSENCIA_PUB).order('desde');
+        if (e2) return errInterno('bootstrap ausencias', e2);
+        const activos = new Set((personas ?? []).map((p: any) => p.id));
+        const ausencias = (aus ?? []).filter((a: any) => a.estado !== 'rechazada' && activos.has(a.persona_id));
+        return json({ personas: personas ?? [], ausencias });
+      }
+
+      // Panel del jefe (con PIN): datos completos, incluido comentario.
+      case 'bootstrap_admin': {
+        const { data: personas, error: e1 } = await db.from('chcal_personas').select('*').eq('activo', true).order('orden');
+        if (e1) return errInterno('bootstrap_admin personas', e1);
+        const { data: ausencias, error: e2 } = await db.from('chcal_ausencias').select('*').order('desde');
+        if (e2) return errInterno('bootstrap_admin ausencias', e2);
         return json({ personas: personas ?? [], ausencias: ausencias ?? [] });
       }
 
       case 'submit': {
-        const { persona_id, tipo, desde, hasta } = body;
-        if (!persona_id || !TIPOS.has(tipo) || !isDate(desde) || !isDate(hasta) || hasta < desde)
+        const { tipo, desde, hasta } = body;
+        const persona_id = Number(body.persona_id);
+        if (!Number.isSafeInteger(persona_id) || persona_id <= 0 || typeof tipo !== 'string' || !TIPOS.has(tipo) ||
+            !isDate(desde) || !isDate(hasta) || hasta < desde)
           return json({ error: 'datos inválidos' }, 400);
-        const { data: p } = await db.from('chcal_personas').select('id').eq('id', persona_id).eq('activo', true).single();
+        if (diasEntre(desde, hasta) > MAX_DIAS_SOLICITUD) return json({ error: 'el rango de fechas es demasiado largo' }, 400);
+        const comentario = body.comentario == null ? '' : String(body.comentario).trim();
+        if (comentario.length > MAX_COMENTARIO) return json({ error: `el comentario supera ${MAX_COMENTARIO} caracteres` }, 400);
+        const { data: p, error: eP } = await db.from('chcal_personas').select('id').eq('id', persona_id).eq('activo', true).maybeSingle();
+        if (eP) return errInterno('submit persona', eP);
         if (!p) return json({ error: 'persona inválida' }, 400);
+        // Tope de pendientes por persona: la entrada es pública (sin PIN).
+        const { data: pend, error: eC } = await db.from('chcal_ausencias').select('id')
+          .eq('persona_id', persona_id).eq('estado', 'pendiente').limit(MAX_PENDIENTES);
+        if (eC) return errInterno('submit pendientes', eC);
+        if ((pend ?? []).length >= MAX_PENDIENTES)
+          return json({ error: `ya hay ${MAX_PENDIENTES} solicitudes pendientes para esta persona; esperá a que se aprueben` }, 429);
         const { data, error } = await db.from('chcal_ausencias')
-          .insert({ persona_id, tipo, desde, hasta, comentario: (body.comentario ?? '').toString().slice(0, 300) || null, estado: 'pendiente' })
-          .select().single();
-        if (error) throw error;
+          .insert({ persona_id, tipo, desde, hasta, comentario: comentario || null, estado: 'pendiente' })
+          .select(COLS_AUSENCIA_PUB).single();
+        if (error) return errInterno('submit insert', error);
         return json({ ok: true, ausencia: data });
       }
 
@@ -179,8 +227,10 @@ Deno.serve(async (req) => {
 
       case 'set_pin': {
         const np = String(body.new_pin ?? '').trim();
-        if (np.length < 4) return json({ error: 'PIN muy corto' }, 400);
-        await db.from('chcal_config').update({ pin_admin: np, updated_at: new Date().toISOString() }).eq('id', 1);
+        if (np.length < 8) return json({ error: 'El PIN nuevo debe tener al menos 8 caracteres' }, 400);
+        if (np.length > 64) return json({ error: 'PIN demasiado largo' }, 400);
+        const { error } = await db.from('chcal_config').update({ pin_admin: np, updated_at: new Date().toISOString() }).eq('id', 1);
+        if (error) return errInterno('set_pin', error);
         return json({ ok: true });
       }
 
@@ -188,6 +238,6 @@ Deno.serve(async (req) => {
         return json({ error: 'accion desconocida' }, 400);
     }
   } catch (e) {
-    return json({ error: String(e?.message ?? e) }, 500);
+    return errInterno(String(action), e);
   }
 });
