@@ -119,7 +119,9 @@ function mapDatos(d){
   S.P = (d.personas||[]).map(p=>({ id:p.id, n:p.nombre, a:p.area||"", r:p.rol||"", d:p.dias_asignados }));
   S.A = (d.ausencias||[]).map(a=>({ id:a.id, p:a.persona_id, t:a.tipo, f:a.desde, h:a.hasta, s:a.estado, c:a.comentario||"" }));
 }
-async function load(){ const d = await api("bootstrap"); mapDatos(d); }
+// El empleado (sin PIN) recibe solo lo que muestra la vista pública; el jefe
+// (con PIN) pide bootstrap_admin, que trae comentarios y días asignados.
+async function load(){ const d = await api(S.manager ? "bootstrap_admin" : "bootstrap"); mapDatos(d); }
 
 /* ---------------- Cálculos ---------------- */
 function resumen(p){
@@ -184,8 +186,9 @@ async function fSend(){
 /* ==================================================================
    PANEL DEL JEFE
 ================================================================== */
-function enterManager(){
+async function enterManager(){
   S.manager=true;
+  try{ await load(); }catch(ex){ toast("No se pudieron cargar los datos: "+ex.message,true); }
   $("#employee").classList.add("hidden");
   $("#dash").classList.remove("hidden");
   $("#gate").classList.add("hidden");
@@ -422,9 +425,9 @@ function addAusencia(){
 }
 function changePin(){
   openModal("Cambiar PIN del panel",`
-    <label class="fl">Nuevo PIN (mín. 4)</label><input id="m-pin" type="text" placeholder="nuevo PIN">
+    <label class="fl">Nuevo PIN (mín. 8 caracteres)</label><input id="m-pin" type="text" placeholder="nuevo PIN">
     <div class="modal-actions"><button class="btn ghost" onclick="APP.closeModal()">Cancelar</button><button class="btn primary" id="m-ok">Cambiar</button></div>`);
-  $("#m-ok").onclick=async ()=>{ const np=$("#m-pin").value.trim(); if(np.length<4) return toast("PIN muy corto",true);
+  $("#m-ok").onclick=async ()=>{ const np=$("#m-pin").value.trim(); if(np.length<8) return toast("El PIN debe tener al menos 8 caracteres",true);
     try{ await api("set_pin",{ new_pin:np }); S.pin=np; if(localStorage.getItem("chcal_pin")) localStorage.setItem("chcal_pin",np);
       closeModal(); toast("PIN cambiado ✓"); }catch(ex){ toast(ex.message,true); } };
 }
